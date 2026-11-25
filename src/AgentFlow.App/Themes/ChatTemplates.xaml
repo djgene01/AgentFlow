@@ -1,0 +1,253 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="clr-namespace:AgentFlow.App.ViewModels"
+                    xmlns:controls="clr-namespace:AgentFlow.App.Controls"
+                    xmlns:chat="clr-namespace:AgentFlow.Core.Chat;assembly=AgentFlow.Core">
+
+    <!-- Your message: right-aligned bubble with the model, effort and permission it was sent with. -->
+    <DataTemplate DataType="{x:Type vm:UserMessageViewModel}">
+        <StackPanel HorizontalAlignment="Right" MaxWidth="720" Margin="80,10,0,4">
+            <Border CornerRadius="10" Padding="12,8" Background="{DynamicResource AccentFillColorDefaultBrush}">
+                <TextBox Text="{Binding Text, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0"
+                         Background="Transparent" Padding="0"
+                         Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+            </Border>
+            <TextBlock HorizontalAlignment="Right" Margin="0,3,4,0" Style="{StaticResource SecondaryText}">
+                <Run Text="{Binding Meta, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding TimeText, Mode=OneWay}" />
+            </TextBlock>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Claude's text: Markdown, re-rendered while it streams. -->
+    <DataTemplate DataType="{x:Type vm:AssistantTextViewModel}">
+        <Grid Margin="0,6,60,2">
+            <controls:MarkdownView Markdown="{Binding Text}" FontSize="14" />
+            <TextBlock Text="▍" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,-2"
+                       Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                       Visibility="{Binding IsStreaming, Converter={StaticResource BoolToVisibility}}" />
+        </Grid>
+    </DataTemplate>
+
+    <!-- A tool call: one line collapsed; input and result when expanded; subagent calls nested inside. -->
+    <DataTemplate DataType="{x:Type vm:ToolCallViewModel}">
+        <Border Style="{StaticResource Card}" Margin="0,3,60,3" Padding="0">
+            <Expander IsExpanded="{Binding IsExpanded}" Padding="10,4">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="Status" Text="✓" Width="18" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding Summary}" Style="{StaticResource SecondaryText}" FontFamily="{StaticResource MonoFont}"
+                                   VerticalAlignment="Center" MaxWidth="560" />
+                    </StackPanel>
+                </Expander.Header>
+                <StackPanel Margin="18,4,0,8">
+                    <TextBlock Text="Input" Style="{StaticResource SecondaryText}" Margin="0,0,0,2" />
+                    <TextBox Text="{Binding InputText, Mode=OneWay}" Style="{StaticResource MonoBox}" />
+                    <TextBlock Text="Result" Style="{StaticResource SecondaryText}" Margin="0,8,0,2"
+                               Visibility="{Binding Result, Converter={StaticResource NullToCollapsed}}" />
+                    <TextBox Text="{Binding Result, Mode=OneWay}" Style="{StaticResource MonoBox}"
+                             Visibility="{Binding Result, Converter={StaticResource NullToCollapsed}}" />
+                    <ItemsControl ItemsSource="{Binding Children}" Margin="0,8,0,0" />
+                </StackPanel>
+            </Expander>
+        </Border>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsPending}" Value="True">
+                <Setter TargetName="Status" Property="Text" Value="…" />
+                <Setter TargetName="Status" Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsError}" Value="True">
+                <Setter TargetName="Status" Property="Text" Value="✕" />
+                <Setter TargetName="Status" Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:NoticeViewModel}">
+        <Border x:Name="Box" CornerRadius="6" Padding="10,6" Margin="0,4,60,4" BorderThickness="1"
+                Background="{DynamicResource SystemFillColorAttentionBackgroundBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+            <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+        </Border>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding Level}" Value="{x:Static chat:NoticeLevel.Warning}">
+                <Setter TargetName="Box" Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Level}" Value="{x:Static chat:NoticeLevel.Error}">
+                <Setter TargetName="Box" Property="Background" Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- Workflow: a stage starts. -->
+    <DataTemplate DataType="{x:Type vm:StageDividerViewModel}">
+        <Border Margin="0,16,0,6" Padding="0,0,0,6" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Run again from here" Command="{Binding RunAgainCommand}" Padding="8,2" VerticalAlignment="Center"
+                        ToolTip="Run this stage and everything after it again, reusing the earlier stages' results"
+                        Visibility="{Binding CanRunAgain, Converter={StaticResource BoolToVisibility}}" />
+                <StackPanel>
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                    <TextBlock Text="{Binding Details}" Style="{StaticResource SecondaryText}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </DataTemplate>
+
+    <!-- Workflow: run started / finished. -->
+    <DataTemplate DataType="{x:Type vm:RunStatusViewModel}">
+        <Border Margin="0,12,0,4" Padding="10,6" CornerRadius="6" Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+            <StackPanel>
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                <WrapPanel Margin="0,8,0,2" Visibility="{Binding IsEnd, Converter={StaticResource BoolToVisibility}}">
+                    <Button Content="{Binding RetryLabel}" Command="{Binding RetryCommand}" Style="{DynamicResource AccentButtonStyle}" Margin="0,0,8,0"
+                            ToolTip="Run the stage again, then carry on"
+                            Visibility="{Binding CanRetry, Converter={StaticResource BoolToVisibility}}" />
+                    <Button Content="{Binding SkipLabel}" Command="{Binding SkipCommand}" ToolTip="Carry on as if this stage were done" Margin="0,0,8,0"
+                            Visibility="{Binding CanRetry, Converter={StaticResource BoolToVisibility}}" />
+                    <Button Content="Export run…" Command="{Binding ExportCommand}" ToolTip="Save this run as a Markdown file" />
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+
+    <!-- Claude Code asks permission for a tool call no rule allows. -->
+    <DataTemplate DataType="{x:Type vm:ApprovalViewModel}">
+        <Border x:Name="Box" Style="{StaticResource Card}" Margin="0,6,60,6" BorderThickness="2" BorderBrush="{DynamicResource SystemFillColorCautionBrush}">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="14" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Description}" Style="{StaticResource SecondaryText}" TextTrimming="None" TextWrapping="Wrap" Margin="0,2,0,0"
+                           Visibility="{Binding Description, Converter={StaticResource NullToCollapsed}}" />
+                <TextBox Text="{Binding Summary, Mode=OneWay}" Style="{StaticResource MonoBox}" Margin="0,8,0,0" />
+                <Button Content="Show full request" Command="{Binding ToggleInputCommand}" HorizontalAlignment="Left" Padding="6,1" Margin="0,6,0,0" />
+                <TextBox Text="{Binding InputText, Mode=OneWay}" Style="{StaticResource MonoBox}" Margin="0,6,0,0"
+                         Visibility="{Binding ShowInput, Converter={StaticResource BoolToVisibility}}" />
+
+                <StackPanel Visibility="{Binding IsPending, Converter={StaticResource BoolToVisibility}}" Margin="0,10,0,0">
+                    <WrapPanel>
+                        <Button Content="Allow once" Command="{Binding AllowOnceCommand}" Style="{DynamicResource AccentButtonStyle}" MinWidth="90" Margin="0,0,8,6" />
+                        <Button Command="{Binding AlwaysAllowCommand}" Margin="0,0,8,6"
+                                ToolTip="Saved for this project and passed to every later turn as an allow rule"
+                                Visibility="{Binding AlwaysLabel, Converter={StaticResource NullToCollapsed}}">
+                            <TextBlock Text="{Binding AlwaysLabel}" />
+                        </Button>
+                        <Button Content="Deny" Command="{Binding DenyCommand}" MinWidth="70" Margin="0,0,8,6" />
+                    </WrapPanel>
+                    <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,0"
+                             ToolTip="Optional: tell Claude why, or what to do instead. Sent with Deny." />
+                    <TextBlock Text="Optional reason for Deny, for example: use the existing test script instead" Style="{StaticResource SecondaryText}" Margin="2,2,0,0" />
+                </StackPanel>
+                <TextBlock Text="{Binding StatusText}" Style="{StaticResource SecondaryText}" TextTrimming="None" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Visibility="{Binding StatusText, Converter={StaticResource NullToCollapsed}}" />
+            </StackPanel>
+        </Border>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsPending}" Value="False">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                <Setter TargetName="Box" Property="BorderThickness" Value="1" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- The app closed during a run. -->
+    <DataTemplate DataType="{x:Type vm:RecoveryViewModel}">
+        <Border Style="{StaticResource Card}" Margin="0,8,40,8" BorderThickness="2" BorderBrush="{DynamicResource SystemFillColorCautionBrush}">
+            <StackPanel>
+                <TextBlock Text="A workflow was interrupted" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,6" />
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding CanAct, Converter={StaticResource BoolToVisibility}}">
+                    <Button Content="Resume" Command="{Binding ResumeCommand}" Style="{DynamicResource AccentButtonStyle}" MinWidth="90" Margin="0,0,8,0" />
+                    <Button Content="Discard the run" Command="{Binding DiscardCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding StatusText}" Style="{StaticResource SecondaryText}" Margin="0,8,0,0"
+                           Visibility="{Binding StatusText, Converter={StaticResource NullToCollapsed}}" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+
+    <!-- Workflow: reviewer's verdict. -->
+    <DataTemplate DataType="{x:Type vm:VerdictViewModel}">
+        <Border x:Name="Box" Style="{StaticResource Card}" Margin="0,6,60,6" BorderThickness="2"
+                BorderBrush="{DynamicResource SystemFillColorCautionBrush}">
+            <StackPanel>
+                <TextBlock x:Name="Head" Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,4" />
+                <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,0,0,6"
+                           Visibility="{Binding Summary, Converter={StaticResource NullToCollapsed}}" />
+                <ItemsControl ItemsSource="{Binding Findings}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,4">
+                                <TextBlock TextWrapping="Wrap">
+                                    <Run Text="{Binding Severity, Mode=OneWay}" FontWeight="SemiBold" />
+                                    <Run Text="  " />
+                                    <Run Text="{Binding Location, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" />
+                                </TextBlock>
+                                <TextBlock Text="{Binding Issue}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding Fix}" TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None"
+                                           Visibility="{Binding Fix, Converter={StaticResource NullToCollapsed}}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding Passed}" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- Workflow: gate waiting for approval. -->
+    <DataTemplate DataType="{x:Type vm:GateViewModel}">
+        <Border Style="{StaticResource Card}" Margin="0,8,40,8" BorderThickness="2" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,8" />
+
+                <ScrollViewer MaxHeight="520" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVisibility}}">
+                    <controls:MarkdownView Markdown="{Binding Text}" FontSize="14" />
+                </ScrollViewer>
+                <TextBox Text="{Binding EditedText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap"
+                         MinHeight="200" MaxHeight="520" VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource MonoFont}" FontSize="12.5"
+                         Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}" />
+
+                <StackPanel Visibility="{Binding IsPending, Converter={StaticResource BoolToVisibility}}" Margin="0,10,0,0">
+                    <StackPanel Visibility="{Binding IsLoopQuestion, Converter={StaticResource InverseBoolToVisibility}}">
+                        <TextBox Text="{Binding Feedback, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="44"
+                                 ToolTip="With Approve: notes passed to the next stage. With Request changes: what the stage should revise." />
+                        <TextBlock Text="Notes for the next stage, or what should change" Style="{StaticResource SecondaryText}" Margin="2,2,0,8" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="{Binding ApproveLabel}" Command="{Binding ApproveCommand}" Style="{DynamicResource AccentButtonStyle}" MinWidth="90" Margin="0,0,8,0" />
+                        <Button Content="Edit before approving" Command="{Binding ToggleEditCommand}" Margin="0,0,8,0"
+                                Visibility="{Binding IsLoopQuestion, Converter={StaticResource InverseBoolToVisibility}}" />
+                        <Button Content="Request changes" Command="{Binding RequestChangesCommand}" Margin="0,0,8,0"
+                                Visibility="{Binding IsLoopQuestion, Converter={StaticResource InverseBoolToVisibility}}" />
+                        <Button Content="{Binding CancelLabel}" Command="{Binding CancelRunCommand}" />
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock Text="{Binding StatusText}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" TextTrimming="None" Margin="0,8,0,0"
+                           Visibility="{Binding StatusText, Converter={StaticResource NullToCollapsed}}" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:TurnSummaryViewModel}">
+        <TextBlock Text="{Binding Text}" Style="{StaticResource SecondaryText}" Margin="0,2,0,8" />
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:DividerViewModel}">
+        <Grid Margin="0,14,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            <Separator VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="{Binding Text}" Style="{StaticResource SecondaryText}" Margin="10,0" />
+            <Separator Grid.Column="2" VerticalAlignment="Center" />
+        </Grid>
+    </DataTemplate>
+</ResourceDictionary>

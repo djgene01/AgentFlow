@@ -1,0 +1,734 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="clr-namespace:AgentFlow.App.ViewModels"
+                    xmlns:views="clr-namespace:AgentFlow.App.Views"
+                    xmlns:builder="clr-namespace:AgentFlow.App.ViewModels.Builder">
+
+    <DataTemplate DataType="{x:Type vm:ChatViewModel}">
+        <views:ChatView />
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type builder:WorkflowBuilderViewModel}">
+        <views:WorkflowBuilderView />
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:DiagnosticsViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32,28" MaxWidth="720" HorizontalAlignment="Left">
+                <TextBlock Text="Claude Code status" Style="{StaticResource SectionTitle}" />
+                <TextBlock TextWrapping="Wrap" Margin="0,0,0,16" Style="{StaticResource SecondaryText}" TextTrimming="None">
+                    AgentFlow runs the Claude Code CLI installed on this computer. It never signs you in or reads your credentials:
+                    sign-in happens in Anthropic's own flow, in a terminal you control.
+                </TextBlock>
+
+                <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="110" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="CLI" Style="{StaticResource SecondaryText}" Margin="0,4" />
+                        <TextBlock Grid.Column="1" Text="{Binding CliPath}" TextWrapping="Wrap" FontFamily="{StaticResource MonoFont}" Margin="0,4" />
+                        <TextBlock Grid.Row="1" Text="Version" Style="{StaticResource SecondaryText}" Margin="0,4" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Version}" Margin="0,4" />
+                        <TextBlock Grid.Row="2" Text="Account" Style="{StaticResource SecondaryText}" Margin="0,4" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SignInText}" Margin="0,4" />
+                        <TextBlock Grid.Row="3" Text="App data" Style="{StaticResource SecondaryText}" Margin="0,4" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding DatabasePath}" TextWrapping="Wrap" FontFamily="{StaticResource MonoFont}" Margin="0,4" />
+                    </Grid>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                    <Button Content="Check again" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+                    <Button Content="Sign in in a terminal" Command="{Binding OpenSignInTerminalCommand}" Margin="0,0,8,0"
+                            Visibility="{Binding IsCliFound, Converter={StaticResource BoolToVisibility}}" />
+                    <Button Content="Open install instructions" Command="{Binding OpenInstallPageCommand}"
+                            Visibility="{Binding IsCliFound, Converter={StaticResource InverseBoolToVisibility}}" />
+                </StackPanel>
+                <TextBlock Text="After signing in, press Check again." Style="{StaticResource SecondaryText}" Margin="0,8,0,0"
+                           Visibility="{Binding IsSignedIn, Converter={StaticResource InverseBoolToVisibility}}" />
+
+                <TextBlock Text="Permission prompts" Style="{StaticResource SectionTitle}" Margin="0,28,0,8" />
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,0,0,10">
+                    When Claude Code wants to do something a stage or permission mode does not allow, AgentFlow can ask you
+                    in the chat (Allow once, Always allow in this project, or Deny), or deny it automatically.
+                </TextBlock>
+                <RadioButton Content="Ask me in the chat" IsChecked="{Binding IsAsk}" GroupName="approvals" />
+                <RadioButton IsChecked="{Binding IsAllowInWorkflows}" GroupName="approvals" Margin="0,6,0,0">
+                    <TextBlock TextWrapping="Wrap" Text="Allow automatically during workflow runs (unattended); still ask in direct chat" />
+                </RadioButton>
+                <RadioButton IsChecked="{Binding IsAllowEverywhere}" GroupName="approvals" Margin="0,6,0,0">
+                    <TextBlock TextWrapping="Wrap" Text="Allow automatically in workflow runs and direct chat" />
+                </RadioButton>
+                <RadioButton Content="Deny automatically" IsChecked="{Binding IsDeny}" GroupName="approvals" Margin="0,6,0,0" />
+                <Border Margin="26,8,0,0" Padding="10,6" CornerRadius="6" Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
+                        Visibility="{Binding IsAutoAllow, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock TextWrapping="Wrap">
+                        Claude Code may then run any command or edit any file that it would otherwise ask about, without waiting
+                        for you. Still enforced: deny rules, read-only stages (Plan, Review), plan mode (pick it in the chat's mode
+                        menu to keep a direct chat read-only), and tools that cost money, which always ask.
+                        Every action allowed this way is shown in the chat. Use it only for projects you trust.
+                    </TextBlock>
+                </Border>
+                <TextBlock Text="{Binding ApprovalServerText, StringFormat='Permission server: {0}'}" Style="{StaticResource SecondaryText}" TextTrimming="None"
+                           TextWrapping="Wrap" Margin="0,10,0,0" />
+
+                <TextBlock Text="Appearance" Style="{StaticResource SectionTitle}" Margin="0,28,0,8" />
+                <ComboBox ItemsSource="{Binding ThemeChoices}" SelectedItem="{Binding SelectedTheme}" Width="200" HorizontalAlignment="Left" />
+
+                <StackPanel DataContext="{Binding Sounds}"
+                            Visibility="{Binding Converter={StaticResource NullToCollapsed}}">
+                    <TextBlock Text="Sounds" Style="{StaticResource SectionTitle}" Margin="0,28,0,8" />
+                    <CheckBox Content="Play sounds for chat, workflow and git events" IsChecked="{Binding IsEnabled}" />
+                    <StackPanel IsEnabled="{Binding IsEnabled}" Margin="0,10,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Volume" VerticalAlignment="Center" Width="150" />
+                            <Slider Minimum="0" Maximum="100" Value="{Binding Volume}" Width="200" VerticalAlignment="Center"
+                                    IsMoveToPointEnabled="True" />
+                            <TextBlock Text="{Binding Volume, StringFormat='{}{0:0}%'}" VerticalAlignment="Center" Margin="10,0,0,0" Width="40" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Permission requests" VerticalAlignment="Center" Width="150" />
+                            <ComboBox ItemsSource="{Binding RepeatOptions}" SelectedItem="{Binding SelectedRepeat}" Width="200" />
+                            <Button Content="Test" Command="{Binding TestPermissionPingCommand}" Margin="8,0,0,0" />
+                        </StackPanel>
+                        <TextBlock Text="A permission request keeps pinging until you answer it." Style="{StaticResource SecondaryText}"
+                                   Margin="150,4,0,0" TextTrimming="None" TextWrapping="Wrap" />
+                        <CheckBox Content="Remind me every 30 seconds while a stage waits for my review" IsChecked="{Binding RemindReviews}" Margin="0,8,0,0" />
+
+                        <TextBlock Text="Which events make a sound" FontWeight="SemiBold" Margin="0,14,0,4" />
+                        <ItemsControl ItemsSource="{Binding Cues}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="230" />
+                                            <ColumnDefinition />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Content="{Binding Label}" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Description}" Style="{StaticResource SecondaryText}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <Button Grid.Column="2" Content="▶ Play" Command="{Binding PreviewCommand}" Padding="10,2"
+                                                ToolTip="Play this sound" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock Text="Keyboard shortcuts" Style="{StaticResource SectionTitle}" Margin="0,28,0,8" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Enter / Shift+Enter" FontFamily="{StaticResource MonoFont}" Margin="0,2" />
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Send (or queue while running) / new line" Margin="0,2" />
+                    <TextBlock Grid.Row="1" Text="Ctrl+F" FontFamily="{StaticResource MonoFont}" Margin="0,2" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="Search this chat" Margin="0,2" />
+                    <TextBlock Grid.Row="2" Text="F3 / Shift+F3" FontFamily="{StaticResource MonoFont}" Margin="0,2" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="Next / previous match" Margin="0,2" />
+                    <TextBlock Grid.Row="3" Text="Esc" FontFamily="{StaticResource MonoFont}" Margin="0,2" />
+                    <TextBlock Grid.Row="3" Grid.Column="1" Text="Close search" Margin="0,2" />
+                    <TextBlock Grid.Row="4" Text="Ctrl+L" FontFamily="{StaticResource MonoFont}" Margin="0,2" />
+                    <TextBlock Grid.Row="4" Grid.Column="1" Text="Go to the message box" Margin="0,2" />
+                    <TextBlock Grid.Row="5" Text="Ctrl+Shift+S" FontFamily="{StaticResource MonoFont}" Margin="0,2" />
+                    <TextBlock Grid.Row="5" Grid.Column="1" Text="Stop the running turn" Margin="0,2" />
+                    <TextBlock Grid.Row="6" Text="Ctrl+Shift+N" FontFamily="{StaticResource MonoFont}" Margin="0,2" />
+                    <TextBlock Grid.Row="6" Grid.Column="1" Text="New session for the next message" Margin="0,2" />
+                    <TextBlock Grid.Row="7" Text="Ctrl+1 … Ctrl+9" FontFamily="{StaticResource MonoFont}" Margin="0,2" />
+                    <TextBlock Grid.Row="7" Grid.Column="1" Text="Switch to project 1 … 9" Margin="0,2" />
+                </Grid>
+
+                <TextBlock Text="Log" Style="{StaticResource SectionTitle}" Margin="0,28,0,8" />
+                <TextBlock Text="{Binding LogFolder, StringFormat='Errors and failed turns are logged in {0}'}" Style="{StaticResource SecondaryText}"
+                           TextTrimming="None" TextWrapping="Wrap" />
+                <Button Content="Open log folder" Command="{Binding OpenLogFolderCommand}" HorizontalAlignment="Left" Margin="0,8,0,0" />
+            </StackPanel>
+        </ScrollViewer>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:GitViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32,28" MaxWidth="760" HorizontalAlignment="Left">
+                <TextBlock Text="Git and GitHub" Style="{StaticResource SectionTitle}" />
+                <TextBlock TextWrapping="Wrap" Margin="0,0,0,14" Style="{StaticResource SecondaryText}" TextTrimming="None">
+                    Set up git once, sign in to GitHub, then commit and push your projects from here. Sign-in happens on
+                    GitHub's own page through Git Credential Manager, which keeps it in Windows Credential Manager:
+                    AgentFlow never sees your password or token.
+                </TextBlock>
+
+                <!-- Steps -->
+                <Border Style="{StaticResource Card}">
+                    <ItemsControl ItemsSource="{Binding Steps}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:GitStepViewModel}">
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="26" />
+                                        <ColumnDefinition Width="280" />
+                                        <ColumnDefinition />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="mark" Text="{Binding Mark}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Title}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Detail}" Style="{StaticResource SecondaryText}" />
+                                </Grid>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                        <Setter TargetName="mark" Property="Foreground" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <StackPanel IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                    <!-- 1. This computer -->
+                    <TextBlock Text="1. Git on this computer" Style="{StaticResource SectionTitle}" Margin="0,24,0,8" />
+                    <TextBlock Text="{Binding ToolsText}" TextWrapping="Wrap" />
+                    <Border Margin="0,8,0,0" Padding="10,6" CornerRadius="6" Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
+                            Visibility="{Binding HelperWarning, Converter={StaticResource NullToCollapsed}}">
+                        <TextBlock Text="{Binding HelperWarning}" TextWrapping="Wrap" />
+                    </Border>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="Check again" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+                        <Button Content="Download Git for Windows" Command="{Binding OpenGitDownloadCommand}" Margin="0,0,8,0"
+                                Visibility="{Binding HasGit, Converter={StaticResource InverseBoolToVisibility}}" />
+                        <Button Content="Use Git Credential Manager" Command="{Binding UseCredentialManagerCommand}"
+                                Visibility="{Binding HelperWarning, Converter={StaticResource NullToCollapsed}}" />
+                    </StackPanel>
+
+                    <StackPanel Visibility="{Binding HasGit, Converter={StaticResource BoolToVisibility}}">
+                        <!-- 2. Identity -->
+                        <TextBlock Text="2. Your name and email" Style="{StaticResource SectionTitle}" Margin="0,24,0,8" />
+                        <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,0,0,8">
+                            Every commit records this name and email, and GitHub shows them publicly. To keep your address private,
+                            use the "noreply" address from GitHub's email settings (it looks like 12345+name@users.noreply.github.com).
+                        </TextBlock>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="70" />
+                                <ColumnDefinition MaxWidth="420" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Name" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1" Text="{Binding IdentityName, UpdateSourceTrigger=PropertyChanged}" Margin="0,2" />
+                            <TextBlock Grid.Row="1" Text="Email" VerticalAlignment="Center" />
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding IdentityEmail, UpdateSourceTrigger=PropertyChanged}" Margin="0,2" />
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="70,8,0,0">
+                            <Button Content="Save" Command="{Binding SaveIdentityCommand}" Style="{DynamicResource AccentButtonStyle}" MinWidth="80" Margin="0,0,8,0" />
+                            <Button Content="Open GitHub email settings" Command="{Binding OpenEmailSettingsCommand}" />
+                        </StackPanel>
+
+                        <!-- 3. GitHub -->
+                        <TextBlock Text="3. GitHub account" Style="{StaticResource SectionTitle}" Margin="0,24,0,8" />
+                        <TextBlock Text="Not signed in to GitHub yet." Style="{StaticResource SecondaryText}"
+                                   Visibility="{Binding StepGitHub.IsDone, Converter={StaticResource InverseBoolToVisibility}}" />
+                        <ItemsControl ItemsSource="{Binding Accounts}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,2" MaxWidth="490" HorizontalAlignment="Left" LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Content="Sign out" Padding="8,2" FontSize="12"
+                                                Command="{Binding DataContext.SignOutCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" />
+                                        <TextBlock VerticalAlignment="Center" Width="400">
+                                            <Run Text="Signed in as" /> <Run Text="{Binding Mode=OneWay}" FontWeight="SemiBold" />
+                                        </TextBlock>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Content="Sign in with browser" Command="{Binding SignInCommand}" Margin="0,0,8,0"
+                                    IsEnabled="{Binding IsSigningIn, Converter={StaticResource InverseBool}}"
+                                    ToolTip="Opens GitHub's sign-in page through Git Credential Manager" />
+                            <Button Content="Cancel" Command="{Binding CancelSignInCommand}"
+                                    Visibility="{Binding IsSigningIn, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                        <TextBlock Text="Waiting for you to finish signing in in the browser…" Margin="0,6,0,0" Style="{StaticResource SecondaryText}"
+                                   Visibility="{Binding IsSigningIn, Converter={StaticResource BoolToVisibility}}" />
+
+                        <!-- 4. Project -->
+                        <TextBlock Text="4. Project" Style="{StaticResource SectionTitle}" Margin="0,24,0,8" />
+                        <ComboBox ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}" DisplayMemberPath="Name"
+                                  Width="320" HorizontalAlignment="Left" />
+                        <StackPanel Visibility="{Binding HasProject, Converter={StaticResource BoolToVisibility}}" Margin="0,10,0,0">
+                            <TextBlock Text="{Binding RepoText}" TextWrapping="Wrap" />
+                            <TextBlock Margin="0,2,0,0" Style="{StaticResource SecondaryText}" TextTrimming="None" TextWrapping="Wrap">
+                                <Run Text="Folder:" /> <Hyperlink Command="{Binding OpenRepoFolderCommand}"><Run Text="{Binding RepoFolder, Mode=OneWay}" /></Hyperlink>
+                            </TextBlock>
+
+                            <Button Content="Allow this folder" Command="{Binding TrustFolderCommand}" HorizontalAlignment="Left" Margin="0,10,0,0"
+                                    Visibility="{Binding ShowTrust, Converter={StaticResource BoolToVisibility}}" />
+                            <Button Content="Make it a git repository" Command="{Binding InitCommand}" HorizontalAlignment="Left" Margin="0,10,0,0"
+                                    ToolTip="git init with branch main, plus a .gitignore if the folder has none"
+                                    Visibility="{Binding ShowInit, Converter={StaticResource BoolToVisibility}}" />
+
+                            <StackPanel Visibility="{Binding IsRepo, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="GitHub repository" FontWeight="SemiBold" Margin="0,16,0,4" />
+                                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,0,0,6"
+                                           Visibility="{Binding HasRemote, Converter={StaticResource InverseBoolToVisibility}}">
+                                    No GitHub repository yet? Press Create on GitHub, create it there (private, nothing ticked), then paste its address here.
+                                </TextBlock>
+                                <DockPanel MaxWidth="700" HorizontalAlignment="Left">
+                                    <Button DockPanel.Dock="Right" Content="Connect" Command="{Binding ConnectRemoteCommand}" Margin="8,0,0,0" />
+                                    <TextBox Text="{Binding RemoteUrlInput, UpdateSourceTrigger=PropertyChanged}" Width="460"
+                                             FontFamily="{StaticResource MonoFont}" ToolTip="For example https://github.com/you/project.git" />
+                                </DockPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button Content="Create on GitHub…" Command="{Binding CreateOnGitHubCommand}" Margin="0,0,8,0"
+                                            ToolTip="Opens GitHub's new repository page with the name filled in" />
+                                    <Button Content="Open on GitHub" Command="{Binding OpenOnGitHubCommand}"
+                                            Visibility="{Binding HasRemote, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+
+                                <TextBlock Text="Commit" FontWeight="SemiBold" Margin="0,16,0,4" />
+                                <DockPanel MaxWidth="700" HorizontalAlignment="Left">
+                                    <Button DockPanel.Dock="Right" Content="Commit all changes" Command="{Binding CommitCommand}" Margin="8,0,0,0"
+                                            IsEnabled="{Binding HasChanges}" ToolTip="git add -A, then git commit" />
+                                    <TextBox Text="{Binding CommitMessage, UpdateSourceTrigger=PropertyChanged}" Width="460"
+                                             ToolTip="Commit message, for example: Add login page" />
+                                </DockPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Visibility="{Binding HasRemote, Converter={StaticResource BoolToVisibility}}">
+                                    <Button Content="{Binding PushLabel}" Command="{Binding PushCommand}" Style="{DynamicResource AccentButtonStyle}"
+                                            IsEnabled="{Binding CanPush}" Margin="0,0,8,0" />
+                                    <Button Content="Pull" Command="{Binding PullCommand}" ToolTip="Bring in commits from GitHub (fast-forward only)"
+                                            Visibility="{Binding CanPull, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+
+                                <Border Margin="0,12,0,0" Padding="12,10" CornerRadius="6" MaxWidth="700" HorizontalAlignment="Left"
+                                        Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
+                                        Visibility="{Binding HasRejected, Converter={StaticResource BoolToVisibility}}">
+                                    <StackPanel>
+                                        <TextBlock Text="GitHub has work this folder does not have" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                        <TextBlock Text="{Binding RejectedText}" TextWrapping="Wrap" FontFamily="{StaticResource MonoFont}" FontSize="12" />
+                                        <TextBlock Text="{Binding UnrelatedText}" TextWrapping="Wrap" Margin="0,8,0,0" TextTrimming="None"
+                                                   Visibility="{Binding IsUnrelated, Converter={StaticResource BoolToVisibility}}" />
+                                        <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" TextTrimming="None">
+                                            Combine keeps both: GitHub's files (such as a README) come into this folder, then you push again.
+                                            Replace makes GitHub match this folder and drops the commits listed above.
+                                        </TextBlock>
+                                        <WrapPanel Margin="0,10,0,0">
+                                            <Button Content="Put my work on top of GitHub's…" Command="{Binding PlaceOnTopCommand}"
+                                                    Style="{DynamicResource AccentButtonStyle}" Margin="0,0,8,6"
+                                                    Visibility="{Binding IsUnrelated, Converter={StaticResource BoolToVisibility}}" />
+                                            <Button Content="Combine with GitHub's commits" Command="{Binding CombineWithGitHubCommand}"
+                                                    Style="{DynamicResource AccentButtonStyle}" Margin="0,0,8,6"
+                                                    Visibility="{Binding SharesHistory, Converter={StaticResource BoolToVisibility}}" />
+                                            <Button Content="Combine with GitHub's commits" Command="{Binding CombineWithGitHubCommand}" Margin="0,0,8,6"
+                                                    Visibility="{Binding IsUnrelated, Converter={StaticResource BoolToVisibility}}" />
+                                            <Button Content="Replace GitHub's version…" Command="{Binding ReplaceGitHubCommand}" Margin="0,0,0,6" />
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Activity -->
+                <DockPanel Margin="0,24,0,8" Visibility="{Binding Activity, Converter={StaticResource NullToCollapsed}}">
+                    <Button DockPanel.Dock="Right" Content="Clear" Command="{Binding ClearActivityCommand}" Padding="8,2" FontSize="12" />
+                    <TextBlock Text="Activity" Style="{StaticResource SectionTitle}" Margin="0" />
+                </DockPanel>
+                <TextBox Text="{Binding Activity, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="260"
+                         VerticalScrollBarVisibility="Auto" FontFamily="{StaticResource MonoFont}" FontSize="12"
+                         Visibility="{Binding Activity, Converter={StaticResource NullToCollapsed}}" />
+            </StackPanel>
+        </ScrollViewer>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:VideoStudioViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32,24" MaxWidth="820" HorizontalAlignment="Left">
+                <TextBlock Text="Video studio" Style="{StaticResource SectionTitle}" />
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,4,0,14">
+                    Gives Claude Code the VMCP-Studio MCP server, so you can ask for a video in any project chat or
+                    workflow: Claude writes the scene spec, picks voices and music, renders it and gives you the file.
+                    AgentFlow starts the studio's own MCP server for each turn; the studio starts its web server when it needs it.
+                </TextBlock>
+
+                <CheckBox IsChecked="{Binding IsEnabled}" FontWeight="SemiBold">
+                    <TextBlock Text="Let Claude use the video studio in every project" />
+                </CheckBox>
+                <TextBlock Text="{Binding StatusText}" Margin="26,4,0,0" Style="{StaticResource SecondaryText}" TextTrimming="None" TextWrapping="Wrap" />
+
+                <TextBlock Text="Studio folder" FontWeight="SemiBold" Margin="0,18,0,4" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Text="{Binding Folder, UpdateSourceTrigger=PropertyChanged, Delay=400}" FontFamily="{StaticResource MonoFont}" />
+                    <Button Grid.Column="1" Content="Browse…" Command="{Binding BrowseFolderCommand}" Margin="8,0,0,0" />
+                </Grid>
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="{Binding InstallMark}" Margin="0,0,6,0" />
+                    <TextBlock Text="{Binding InstallText}" Style="{StaticResource SecondaryText}" TextTrimming="None" TextWrapping="Wrap" MaxWidth="760" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Use the built-in studio" Command="{Binding UseBuiltInCopyCommand}" Margin="0,0,8,0"
+                            Visibility="{Binding HasBuiltInCopy, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="{Binding BuiltInFolder}" />
+                    <Button Content="Use VMCP-Studio.exe's copy" Command="{Binding UseBundledCopyCommand}"
+                            Visibility="{Binding HasBundledCopy, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="{Binding BundledFolder}" />
+                </StackPanel>
+
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition /><RowDefinition />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Port" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding Port, UpdateSourceTrigger=PropertyChanged, Delay=400}" Width="100" HorizontalAlignment="Left" />
+                    <TextBlock Grid.Row="1" Text="Library folder" VerticalAlignment="Center" Margin="0,8,0,0" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding DataFolder, UpdateSourceTrigger=PropertyChanged, Delay=400}" Margin="0,8,0,0"
+                             FontFamily="{StaticResource MonoFont}" ToolTip="{Binding DataHint}" />
+                    <Button Grid.Row="1" Grid.Column="2" Content="Browse…" Command="{Binding BrowseDataFolderCommand}" Margin="8,8,0,0" />
+                </Grid>
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="150,4,0,0">
+                    <Run Text="{Binding DataHint, Mode=OneWay}" /><Run Text="." /> These only matter when the studio's web server
+                    is not already running: a running studio keeps its own port and library.
+                </TextBlock>
+
+                <TextBlock Text="Permissions" FontWeight="SemiBold" Margin="0,18,0,4" />
+                <CheckBox IsChecked="{Binding AutoAllowSafe}">
+                    <TextBlock TextWrapping="Wrap" Text="Allow the planning, rendering and listing tools without asking" />
+                </CheckBox>
+                <TextBlock Text="{Binding SafeToolsText}" Margin="26,2,0,0" Style="{StaticResource SecondaryText}" TextTrimming="None" TextWrapping="Wrap"
+                           FontFamily="{StaticResource MonoFont}" />
+                <Border Margin="0,8,0,0" Padding="10,6" CornerRadius="6" Background="{DynamicResource SystemFillColorCautionBackgroundBrush}">
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="Always asks you, even in unattended workflow runs, because it costs credits:" />
+                        <Run Text="{Binding PaidToolsText, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" /><Run Text="." />
+                        <Run Text="Importing files (including downloading stock media from Openverse) and creating voices ask too, unless you choose Always allow:" />
+                        <Run Text="{Binding AskToolsText, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" /><Run Text="." />
+                    </TextBlock>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                    <Button Content="Test the MCP server" Command="{Binding TestCommand}" Style="{StaticResource AccentButtonStyle}" />
+                    <Button Content="Open the studio" Command="{Binding OpenStudioCommand}" Margin="8,0,0,0" ToolTip="The library and live render progress" />
+                    <Button Content="Open folder" Command="{Binding OpenFolderCommand}" Margin="8,0,0,0" />
+                </StackPanel>
+                <TextBlock Text="{Binding OpenText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TestText}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding Tools}" Margin="0,6,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="0,0,6,6" Padding="8,2" CornerRadius="4" Background="{DynamicResource ControlFillColorSecondaryBrush}">
+                                <TextBlock Text="{Binding}" FontFamily="{StaticResource MonoFont}" FontSize="12" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="Try it" FontWeight="SemiBold" Margin="0,18,0,4" />
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None">
+                    In any project chat: "Make a 30-second 1920x1080 video introducing this project, with narration and calm music."
+                    Or a hand-drawn explainer: "Make a doodle-style tutorial video on how to set up this project, with a free stock
+                    photo and a whoosh sound effect." Claude follows the studio's own guide; renders show live in the studio's web app.
+                </TextBlock>
+            </StackPanel>
+        </ScrollViewer>
+    </DataTemplate>
+
+    <!-- Pixel Art Studio and SfxForge: desktop studios with an MCP server. -->
+    <DataTemplate DataType="{x:Type vm:StudioAppViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32,24" MaxWidth="820" HorizontalAlignment="Left">
+                <TextBlock Text="{Binding Title}" Style="{StaticResource SectionTitle}" />
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,4,0,4"
+                           Text="{Binding Blurb}" />
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,0,0,14"
+                           Text="{Binding HowItRuns}" />
+
+                <CheckBox IsChecked="{Binding IsEnabled}" FontWeight="SemiBold">
+                    <TextBlock>
+                        <Run Text="Let Claude use" /> <Run Text="{Binding Title, Mode=OneWay}" /> <Run Text="in every project" />
+                    </TextBlock>
+                </CheckBox>
+                <TextBlock Text="{Binding StatusText}" Margin="26,4,0,0" Style="{StaticResource SecondaryText}" TextTrimming="None" TextWrapping="Wrap" />
+                <CheckBox IsChecked="{Binding AutoStart}" Margin="0,10,0,0"
+                          Visibility="{Binding IsInApp, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="Open" /> <Run Text="{Binding Title, Mode=OneWay}" />
+                        <Run Text="when a turn starts and it is closed (otherwise Claude only gets it while you have it open)" />
+                    </TextBlock>
+                </CheckBox>
+
+                <TextBlock Text="App folder" FontWeight="SemiBold" Margin="0,18,0,4" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Text="{Binding Folder, UpdateSourceTrigger=PropertyChanged, Delay=400}" FontFamily="{StaticResource MonoFont}" />
+                    <Button Grid.Column="1" Content="Browse…" Command="{Binding BrowseFolderCommand}" Margin="8,0,0,0" />
+                </Grid>
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="{Binding InstallMark}" Margin="0,0,6,0" />
+                    <TextBlock Text="{Binding InstallText}" Style="{StaticResource SecondaryText}" TextTrimming="None" TextWrapping="Wrap" MaxWidth="760" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Use the built-in copy" Command="{Binding UseBuiltInCopyCommand}" Margin="0,0,8,0"
+                            Visibility="{Binding HasBuiltInCopy, Converter={StaticResource BoolToVisibility}}" />
+                    <Button Content="Use the installed app" Command="{Binding UseInstalledCopyCommand}"
+                            Visibility="{Binding HasInstalledCopy, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="{Binding InstalledFolder}" />
+                </StackPanel>
+
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Port" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding Port, UpdateSourceTrigger=PropertyChanged, Delay=400}" Width="100" HorizontalAlignment="Left" />
+                </Grid>
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="150,4,0,0"
+                           Text="The port the app's own server listens on. Leave it unless another program uses it." />
+
+                <TextBlock Text="Permissions" FontWeight="SemiBold" Margin="0,18,0,4" />
+                <CheckBox IsChecked="{Binding AutoAllowSafe}">
+                    <TextBlock TextWrapping="Wrap" Text="Allow the tools that only work inside the app without asking" />
+                </CheckBox>
+                <TextBlock Text="{Binding SafeToolsText}" Margin="26,2,0,0" Style="{StaticResource SecondaryText}" TextTrimming="None" TextWrapping="Wrap"
+                           FontFamily="{StaticResource MonoFont}" />
+                <Border Margin="0,8,0,0" Padding="10,6" CornerRadius="6" Background="{DynamicResource SystemFillColorCautionBackgroundBrush}">
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="These read or write files on disk, or replace the open work, so they ask you unless you choose Always allow:" />
+                        <Run Text="{Binding AskToolsText, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" /><Run Text="." />
+                    </TextBlock>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                    <Button Content="Test the MCP server" Command="{Binding TestCommand}" Style="{StaticResource AccentButtonStyle}" />
+                    <Button Command="{Binding OpenAppCommand}" Margin="8,0,0,0">
+                        <TextBlock><Run Text="Open" /> <Run Text="{Binding Title, Mode=OneWay}" /></TextBlock>
+                    </Button>
+                    <Button Content="Open folder" Command="{Binding OpenFolderCommand}" Margin="8,0,0,0" />
+                </StackPanel>
+                <TextBlock Text="{Binding OpenText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding TestText}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding Tools}" Margin="0,6,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="0,0,6,6" Padding="8,2" CornerRadius="4" Background="{DynamicResource ControlFillColorSecondaryBrush}">
+                                <TextBlock Text="{Binding}" FontFamily="{StaticResource MonoFont}" FontSize="12" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="Try it" FontWeight="SemiBold" Margin="0,18,0,4" />
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Text="{Binding TryIt}" />
+            </StackPanel>
+        </ScrollViewer>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:VoiceViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32,24" MaxWidth="820" HorizontalAlignment="Left">
+                <TextBlock Text="Voice" Style="{StaticResource SectionTitle}" />
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,4,0,14">
+                    Push-to-talk: hold the key (or the 🎤 button in a chat) and speak. The text appears in the message box while
+                    you talk and is corrected as the sentence goes on; when you let go the whole sentence is transcribed once more.
+                    Speech to text runs on this PC (NVIDIA Parakeet); no audio leaves it.
+                </TextBlock>
+
+                <CheckBox IsChecked="{Binding IsEnabled}" FontWeight="SemiBold" Content="Use voice input" />
+
+                <TextBlock Text="Speech model" FontWeight="SemiBold" Margin="0,18,0,6" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Language" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" MinWidth="360" HorizontalAlignment="Left" />
+                    <TextBlock Grid.Row="1" Text="Run on" VerticalAlignment="Center" Margin="0,8,0,0" />
+                    <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" MinWidth="360" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                    <TextBlock Grid.Row="2" Text="GPU number" VerticalAlignment="Center" Margin="0,8,0,0" />
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBox Text="{Binding GpuIndex, UpdateSourceTrigger=PropertyChanged, Delay=400}" Width="60" />
+                        <TextBlock Text="0 is the main GPU; try 1 when a PC has two (for example built-in and separate)." Style="{StaticResource SecondaryText}"
+                                   VerticalAlignment="Center" Margin="10,0,0,0" />
+                    </StackPanel>
+                    <TextBlock Grid.Row="3" Text="Precision" VerticalAlignment="Center" Margin="0,8,0,0" />
+                    <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Precisions}" SelectedItem="{Binding SelectedPrecision}" MinWidth="360" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                </Grid>
+                <TextBlock Text="{Binding ModelText}" TextWrapping="Wrap" Margin="0,10,0,0" />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Command="{Binding DownloadCommand}" Margin="0,0,8,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+                                <Setter Property="Content" Value="Download the model" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDownloading}" Value="True">
+                                        <Setter Property="Content" Value="Stop the download" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Load now" Command="{Binding LoadNowCommand}" Margin="0,0,8,0" ToolTip="Load the model into memory (it also loads when AgentFlow starts)" />
+                    <Button Content="Delete the model" Command="{Binding DeleteModelCommand}" Margin="0,0,8,0" />
+                    <Button Content="Open folder" Command="{Binding OpenModelFolderCommand}" />
+                </StackPanel>
+                <ProgressBar Value="{Binding DownloadPercent, Mode=OneWay}" Maximum="100" Height="6" Margin="0,10,0,0" MaxWidth="520" HorizontalAlignment="Left" Width="520"
+                             Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Text="{Binding DownloadText}" Style="{StaticResource SecondaryText}" Margin="0,4,0,0" />
+                <TextBlock Text="{Binding EngineText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+
+                <Border Margin="0,10,0,0" Padding="10,6" CornerRadius="6" Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
+                        Visibility="{Binding NeedsVcRuntime, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding VcRuntimeText}" TextWrapping="Wrap" />
+                        <Button Content="Install the Visual C++ runtime" Command="{Binding InstallVcRuntimeCommand}" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                ToolTip="Runs Microsoft's installer that came with AgentFlow (asks for administrator rights)" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Push-to-talk" FontWeight="SemiBold" Margin="0,18,0,6" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition /><RowDefinition />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Key" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Keys}" SelectedItem="{Binding SelectedKey}" MinWidth="220" HorizontalAlignment="Left" />
+                    <TextBlock Grid.Row="1" Text="Microphone" VerticalAlignment="Center" Margin="0,8,0,0" />
+                    <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Microphones}" SelectedItem="{Binding SelectedMicrophone}" MinWidth="360" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                    <Button Grid.Row="1" Grid.Column="2" Content="↻" Command="{Binding RefreshMicrophonesCommand}" Margin="8,8,0,0" ToolTip="List the microphones again" />
+                </Grid>
+                <TextBlock Text="The key works while AgentFlow's window is in front. In a chat, the text goes where the cursor is." Style="{StaticResource SecondaryText}"
+                           TextWrapping="Wrap" TextTrimming="None" Margin="150,4,0,0" />
+                <CheckBox IsChecked="{Binding SendOnRelease}" Content="Send the message when I let go" Margin="0,10,0,0" />
+
+                <TextBlock Text="Text" FontWeight="SemiBold" Margin="0,18,0,6" />
+                <CheckBox IsChecked="{Binding UseProjectWords}">
+                    <TextBlock TextWrapping="Wrap" Text="Use the project's names: &quot;video studio view model&quot; becomes VideoStudioViewModel, &quot;readme dot md&quot; becomes README.md" />
+                </CheckBox>
+                <CheckBox IsChecked="{Binding SpokenCommands}" Content="Say &quot;new line&quot; or &quot;new paragraph&quot; for line breaks" Margin="0,6,0,0" />
+                <CheckBox IsChecked="{Binding RemoveFillers}" Content="Leave out filler words (um, uh)" Margin="0,6,0,0" />
+
+                <TextBlock Text="Try it" FontWeight="SemiBold" Margin="0,18,0,6" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="🎤 Hold to talk" views:HoldToTalk.Voice="{Binding}" Focusable="False" MinWidth="140" />
+                    <TextBlock Text="{Binding ListeningText}" Style="{StaticResource SecondaryText}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                    <ProgressBar Width="90" Height="6" Minimum="0" Maximum="1" Value="{Binding Level, Mode=OneWay}" VerticalAlignment="Center" Margin="10,0,0,0"
+                                 Visibility="{Binding IsListening, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+                <TextBox Text="{Binding TestText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="60" Margin="0,8,0,0" />
+                <TextBlock Text="{Binding TimingText}" Style="{StaticResource SecondaryText}" Margin="0,4,0,0" />
+                <TextBlock Text="{Binding ErrorText}" Foreground="#E5484D" TextWrapping="Wrap" Margin="0,6,0,0" />
+
+                <TextBlock Text="Read replies aloud (Kokoro)" Style="{StaticResource SectionTitle}" Margin="0,28,0,6" />
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,0,0,10">
+                    Claude's replies are read sentence by sentence while they arrive. Code, tables and links are left out.
+                    Talking again, Esc in the chat or "Stop reading" cuts it off. Workflow runs are not read aloud.
+                </TextBlock>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Read aloud" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding ReadModes}" SelectedItem="{Binding SelectedReadMode}" MinWidth="300" HorizontalAlignment="Left" />
+                    <TextBlock Grid.Row="1" Text="Voice" VerticalAlignment="Center" Margin="0,8,0,0" />
+                    <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding TtsVoices}" SelectedItem="{Binding SelectedTtsVoice}" MinWidth="300" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                    <TextBlock Grid.Row="2" Text="Speed" VerticalAlignment="Center" Margin="0,8,0,0" />
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Slider Minimum="0.6" Maximum="1.6" Value="{Binding TtsSpeed}" Width="200" TickFrequency="0.1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding TtsSpeed, StringFormat='{}{0:0.0}×'}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Grid.Row="3" Text="Volume" VerticalAlignment="Center" Margin="0,8,0,0" />
+                    <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Slider Minimum="0" Maximum="100" Value="{Binding TtsVolume}" Width="200" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding TtsVolume, StringFormat='{}{0:0}%'}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock Text="{Binding TtsModelText}" TextWrapping="Wrap" Margin="0,10,0,0" />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Command="{Binding DownloadTtsCommand}" Margin="0,0,8,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+                                <Setter Property="Content" Value="Download Kokoro" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsTtsDownloading}" Value="True">
+                                        <Setter Property="Content" Value="Stop the download" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="▶ Say the sample" Command="{Binding SpeakSampleCommand}" Margin="0,0,8,0" />
+                    <Button Content="■ Stop" Command="{Binding StopSpeakingCommand}" Margin="0,0,8,0" />
+                    <Button Content="Delete Kokoro" Command="{Binding DeleteTtsCommand}" />
+                </StackPanel>
+                <ProgressBar Value="{Binding TtsDownloadPercent, Mode=OneWay}" Maximum="100" Height="6" Margin="0,10,0,0" Width="520" HorizontalAlignment="Left"
+                             Visibility="{Binding IsTtsDownloading, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Text="{Binding TtsDownloadText}" Style="{StaticResource SecondaryText}" Margin="0,4,0,0" />
+                <TextBox Text="{Binding TtsSample, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" Margin="0,6,0,0" ToolTip="The sample text" />
+                <TextBlock Text="{Binding TtsEngineText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,22,0,0">
+                    Kokoro-82M v1.0 by hexgrad (Apache-2.0), in the onnx-community ONNX export, with misaki's English G2P (MisakiSharp, Apache-2.0).
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource SecondaryText}" TextTrimming="None" Margin="0,6,0,0">
+                    Model: NVIDIA Parakeet TDT 0.6B (v2 English, v3 25 European languages), licensed CC-BY-4.0, in the ONNX export by istupakov (onnx-asr).
+                    It runs with ONNX Runtime: DirectML on any DirectX 12 GPU from AMD, Intel or NVIDIA, or the CPU.
+                </TextBlock>
+            </StackPanel>
+        </ScrollViewer>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:WelcomeViewModel}">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="460">
+            <TextBlock Text="Add a project to start" Style="{StaticResource SectionTitle}" HorizontalAlignment="Center" />
+            <TextBlock TextWrapping="Wrap" TextAlignment="Center" Style="{StaticResource SecondaryText}" TextTrimming="None">
+                A project is a folder on this computer. Each project has one chat that continues the same
+                Claude Code session across restarts.
+            </TextBlock>
+        </StackPanel>
+    </DataTemplate>
+</ResourceDictionary>

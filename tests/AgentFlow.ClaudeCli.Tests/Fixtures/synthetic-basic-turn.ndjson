@@ -1,0 +1,11 @@
+{"type":"system","subtype":"init","session_id":"11111111-2222-3333-4444-555555555555","model":"claude-haiku-5-5","tools":["Read","Edit","Bash"],"permissionMode":"dontAsk","capabilities":["interrupt_receipt_v1"],"uuid":"u1"}
+{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_1"}},"parent_tool_use_id":null,"session_id":"11111111-2222-3333-4444-555555555555","uuid":"u2"}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Let me "}},"parent_tool_use_id":null,"session_id":"11111111-2222-3333-4444-555555555555","uuid":"u3"}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"look."}},"parent_tool_use_id":null,"session_id":"11111111-2222-3333-4444-555555555555","uuid":"u4"}
+{"type":"assistant","message":{"id":"msg_1","role":"assistant","content":[{"type":"text","text":"Let me look."},{"type":"tool_use","id":"toolu_1","name":"Read","input":{"file_path":"C:\\repo\\README.md"}}]},"parent_tool_use_id":null,"session_id":"11111111-2222-3333-4444-555555555555","uuid":"u5"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"# Readme"}],"is_error":false}]},"parent_tool_use_id":null,"session_id":"11111111-2222-3333-4444-555555555555","uuid":"u6"}
+{"type":"system","subtype":"api_retry","attempt":1,"max_retries":10,"retry_delay_ms":500,"error_status":529,"error":"overloaded","uuid":"u7","session_id":"11111111-2222-3333-4444-555555555555"}
+{"type":"future_event_type","foo":1}
+not json at all
+{"type":"assistant","message":{"id":"msg_2","role":"assistant","content":[{"type":"text","text":"The readme has a heading."}]},"parent_tool_use_id":null,"session_id":"11111111-2222-3333-4444-555555555555","uuid":"u8"}
+{"type":"result","subtype":"success","is_error":false,"duration_ms":4210,"num_turns":2,"result":"The readme has a heading.","session_id":"11111111-2222-3333-4444-555555555555","total_cost_usd":0.0123,"usage":{"input_tokens":120,"output_tokens":45,"cache_read_input_tokens":3000,"cache_creation_input_tokens":0},"permission_denials":[],"structured_output":{"answer":5},"uuid":"u9"}

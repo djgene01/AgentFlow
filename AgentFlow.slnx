@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AgentFlow.App/AgentFlow.App.csproj" />
+    <Project Path="src/AgentFlow.ClaudeCli/AgentFlow.ClaudeCli.csproj" />
+    <Project Path="src/AgentFlow.Core/AgentFlow.Core.csproj" />
+    <Project Path="src/AgentFlow.CtrlC/AgentFlow.CtrlC.csproj" />
+    <Project Path="src/AgentFlow.Permissions/AgentFlow.Permissions.csproj" />
+    <Project Path="src/AgentFlow.Speech/AgentFlow.Speech.csproj" />
+    <Project Path="src/AgentFlow.Storage/AgentFlow.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AgentFlow.ClaudeCli.Tests/AgentFlow.ClaudeCli.Tests.csproj" />
+    <Project Path="tests/FakeClaude/FakeClaude.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/AgentFlow.Spike/AgentFlow.Spike.csproj" />
+    <Project Path="tools/AgentFlow.UiSnapshot/AgentFlow.UiSnapshot.csproj" />
+  </Folder>
+</Solution>
