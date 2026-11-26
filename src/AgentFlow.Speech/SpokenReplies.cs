@@ -26,16 +26,17 @@ public static partial class SpokenText
         for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i].Trim();
+            // The same clean-up for the line still being written as for finished ones, so text already
+            // spoken keeps its position as the reply grows (only the line's own full stop waits).
+            if (line.StartsWith('|') || TableRule().IsMatch(line)) continue; // tables
+            line = Heading().Replace(line, "");
+            line = Bullet().Replace(line, "");
+            line = Quote().Replace(line, "");
             if (!final && i == lines.Length - 1)
             {
                 sb.Append(line); // still being written: no full stop of our own yet
                 break;
             }
-            if (line.StartsWith('|') || TableRule().IsMatch(line)) continue; // tables
-            if (line.StartsWith("    ") || line.StartsWith('\t')) continue;  // indented code
-            line = Heading().Replace(line, "");
-            line = Bullet().Replace(line, "");
-            line = Quote().Replace(line, "");
             if (line.Length == 0) { sb.Append('\n'); continue; }
             sb.Append(line);
             // A line without its own full stop (a heading or list item) still ends a thought.
@@ -64,8 +65,9 @@ public static partial class SpokenText
     {
         var pieces = new List<string>();
         var current = new StringBuilder();
+        from = Math.Clamp(from, 0, text.Length); // the text can get shorter (an edit, or Markdown closing up)
         var next = from;
-        foreach (Match m in SentenceEnd().Matches(text, Math.Min(from, text.Length)))
+        foreach (Match m in SentenceEnd().Matches(text, from))
         {
             var end = m.Index + m.Length;
             current.Append(text, next, end - next);
@@ -106,6 +108,43 @@ public static partial class SpokenText
     [GeneratedRegex(@"[ \t]+")] private static partial Regex Spaces();
     [GeneratedRegex(@"\n\s*\n+")] private static partial Regex BlankLines();
     [GeneratedRegex(@"[.!?]+[""')\]]*(?=\s|$)|\n")] private static partial Regex SentenceEnd();
+}
+
+/// <summary>
+/// Remembers how much of each reply has been read aloud, so every sentence is spoken exactly once while a
+/// reply streams in: updates may arrive late, twice, or after the reply is finished, and none of that
+/// repeats a sentence. Not thread-safe: call it from one thread (the UI's).
+/// </summary>
+public sealed class ReplyReader
+{
+    private const int Done = int.MaxValue;
+    private readonly Dictionary<Guid, int> _spokenUpTo = [];
+
+    /// <summary>The new pieces to speak for this update of a reply (none when nothing new is complete).</summary>
+    public IReadOnlyList<string> Next(Guid reply, string markdown, bool streaming)
+    {
+        var from = _spokenUpTo.GetValueOrDefault(reply);
+        if (from == Done) return []; // finished and fully read: a late or repeated update says nothing new
+        var spoken = SpokenText.FromMarkdown(markdown, final: !streaming);
+        var (pieces, next) = SpokenText.TakeSentences(spoken, from, final: !streaming);
+        _spokenUpTo[reply] = streaming ? next : Done;
+        if (_spokenUpTo.Count > 500) Prune();
+        return pieces;
+    }
+
+    /// <summary>Marks a reply as read (for example when speaking was stopped), so later updates stay quiet.</summary>
+    public void Finish(Guid reply) => _spokenUpTo[reply] = Done;
+
+    public void FinishAll()
+    {
+        foreach (var id in _spokenUpTo.Keys.ToList()) _spokenUpTo[id] = Done;
+    }
+
+    private void Prune()
+    {
+        // Old finished replies never come back; keep the ones still streaming.
+        foreach (var id in _spokenUpTo.Where(kv => kv.Value == Done).Select(kv => kv.Key).ToList()) _spokenUpTo.Remove(id);
+    }
 }
 
 /// <summary>

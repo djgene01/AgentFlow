@@ -26,6 +26,12 @@ public partial class App : Application
         AppLog.Prune();
         AppLog.Write("AgentFlow started");
 
+        // The animated splash, up while the rest starts. It is the first window, so WPF makes it MainWindow
+        // for now; the real main window takes over below before the splash closes.
+        var splash = new AgentFlow.App.Views.SplashWindow();
+        splash.Show();
+        await Dispatcher.Yield(DispatcherPriority.Render); // paint it before the work below
+
         // The permission server answers Claude Code's permission prompts by asking you in the chat.
         string serverText;
         try
@@ -74,7 +80,11 @@ public partial class App : Application
         _ = _services.GetRequiredService<VoiceViewModel>().PreloadAsync();
         _ = _services.GetRequiredService<VoiceViewModel>().PreloadTtsAsync();
         MainWindow = _services.GetRequiredService<MainWindow>();
+        // Two loops of the animation (its loading bar sweeps twice), however fast startup was.
+        await splash.WaitShownAsync(splash.LoopDuration * 2);
         MainWindow.Show();
+        MainWindow.Activate();
+        splash.FadeOutAndClose();
     }
 
     protected override void OnExit(ExitEventArgs e)

@@ -60,6 +60,10 @@ Claude Code session: close the app, reopen it, and the next message resumes that
 Permission modes offered: Read only (plan), Can edit files (acceptEdits), Allowed tools only (dontAsk).
 Anything that would need approval asks you in the chat (see Approvals in the chat below).
 
+While it starts, AgentFlow shows an animated pixel-art splash (`src\AgentFlow.App\Assets\splash.gif`, played
+by `Views\GifAnimation.cs` because WPF only shows a GIF's first frame) for at least two loops of its loading bar.
+It is drawn at a whole multiple of its 960 x 540 pixels, so it stays crisp at any display scale.
+
 The sidebar lists your projects (a coloured tile with the first letter; a pulsing ring while Claude works;
 hover for the remove button, or right-click) and the tools: Workflows, Git and GitHub, Video studio,
 Pixel Art Studio, SfxForge and Voice, with Claude Code status at the bottom (a green dot when the CLI is

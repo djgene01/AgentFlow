@@ -89,6 +89,68 @@ public sealed class KokoroTextTests
         Assert.All(pieces.SkipLast(1), p => Assert.Equal(16, p[^1])); // cut after a space, not mid-word
     }
 
+    /// <summary>All the pieces, as one string of sentences, for comparing what was heard.</summary>
+    private static string Heard(IEnumerable<string> pieces) => string.Join(" ", pieces);
+
+    [Fact]
+    public void A_streamed_reply_is_read_once_even_when_updates_repeat_or_arrive_after_the_end()
+    {
+        const string reply = "I fixed the bug in the parser. The tests pass now. Next I will update the readme and commit the change.";
+        var reader = new ReplyReader();
+        var id = Guid.NewGuid();
+        var heard = new List<string>();
+
+        // Streamed in small chunks, each update delivered twice (two handlers, or a queued repeat).
+        for (var n = 3; n < reply.Length; n += 7)
+        {
+            heard.AddRange(reader.Next(id, reply[..n], streaming: true));
+            heard.AddRange(reader.Next(id, reply[..n], streaming: true));
+        }
+        heard.AddRange(reader.Next(id, reply, streaming: false));
+        // The finished reply again, and a late streaming update: nothing more is said (this was the loop).
+        heard.AddRange(reader.Next(id, reply, streaming: false));
+        heard.AddRange(reader.Next(id, reply[..40], streaming: true));
+        heard.AddRange(reader.Next(id, reply, streaming: true));
+
+        Assert.Equal(reply, Heard(heard));
+        Assert.Equal(heard.Count, heard.Distinct().Count());
+    }
+
+    [Fact]
+    public void A_list_item_still_being_written_does_not_shift_what_was_already_read()
+    {
+        var reader = new ReplyReader();
+        var id = Guid.NewGuid();
+        var heard = new List<string>();
+        foreach (var text in new[]
+                 {
+                     "Done. Here is what changed:\n- The parser",
+                     "Done. Here is what changed:\n- The parser handles tabs.",
+                     "Done. Here is what changed:\n- The parser handles tabs.\n- The ",
+                     "Done. Here is what changed:\n- The parser handles tabs.\n- The tests cover it.",
+                 })
+            heard.AddRange(reader.Next(id, text, streaming: true));
+        heard.AddRange(reader.Next(id, "Done. Here is what changed:\n- The parser handles tabs.\n- The tests cover it.", streaming: false));
+
+        Assert.Equal("Done. Here is what changed: The parser handles tabs. The tests cover it.", Heard(heard).Replace("  ", " "));
+        Assert.DoesNotContain(heard, p => p.StartsWith('-') || p.Contains("- "));
+    }
+
+    [Fact]
+    public void Stopping_keeps_the_rest_of_a_streaming_reply_quiet_and_shorter_text_does_not_crash()
+    {
+        var reader = new ReplyReader();
+        var id = Guid.NewGuid();
+        Assert.Single(reader.Next(id, "First sentence here. Second", streaming: true));
+        Assert.Empty(reader.Next(id, "First", streaming: true)); // shorter than what was read: no exception, nothing said
+        reader.FinishAll();
+        Assert.Empty(reader.Next(id, "First sentence here. Second sentence done. Third.", streaming: true));
+        Assert.Empty(reader.Next(id, "First sentence here. Second sentence done. Third.", streaming: false));
+
+        var other = Guid.NewGuid(); // a new reply is read normally
+        Assert.Equal(["A new reply."], reader.Next(other, "A new reply.", streaming: false));
+    }
+
     [Fact]
     public void Speech_is_played_as_clipped_16_bit_pcm()
     {

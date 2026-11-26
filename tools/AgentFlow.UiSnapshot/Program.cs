@@ -303,6 +303,38 @@ internal static class Program
     }
 
     /// <summary>"polish &lt;out&gt;": a seeded chat (no CLI calls) in light and dark, with search open, plus a Markdown export.</summary>
+    /// <summary>The animated splash: two captures half a loop apart should differ (the animation runs).</summary>
+    private static int SplashTest(string outDir)
+    {
+        var app = new App();
+        app.InitializeComponent();
+        Directory.CreateDirectory(outDir);
+        var exitCode = 0;
+        var frame = new DispatcherFrame();
+        Dispatcher.CurrentDispatcher.BeginInvoke(async () =>
+        {
+            try
+            {
+                var splash = new AgentFlow.App.Views.SplashWindow { ShowActivated = false };
+                splash.Show();
+                splash.Left = -20000;
+                await Settle(700);
+                Console.WriteLine($"splash: {splash.Width:0}x{splash.Height:0} DIP, loop {splash.LoopDuration.TotalMilliseconds} ms");
+                Save(splash, Path.Combine(outDir, "splash-a.png"));
+                await Settle(450);
+                Save(splash, Path.Combine(outDir, "splash-b.png"));
+                var a = File.ReadAllBytes(Path.Combine(outDir, "splash-a.png"));
+                var b = File.ReadAllBytes(Path.Combine(outDir, "splash-b.png"));
+                Console.WriteLine(a.SequenceEqual(b) ? "splash: NOT animating (captures identical)" : "splash: animating (captures differ)");
+                splash.Close();
+            }
+            catch (Exception ex) { Console.Error.WriteLine(ex); exitCode = 1; }
+            finally { frame.Continue = false; }
+        });
+        Dispatcher.PushFrame(frame);
+        return exitCode;
+    }
+
     private static int PolishTest(string outDir)
     {
         var app = new App();
@@ -445,6 +477,8 @@ internal static class Program
     {
         if (args.Length >= 2 && args[0] == "polish")
             return PolishTest(Path.GetFullPath(args[1]));
+        if (args.Length >= 2 && args[0] == "splash")
+            return SplashTest(Path.GetFullPath(args[1]));
         if (args.Length >= 2 && args[0] is "crash-a" or "crash-b")
             return CrashTest(args[0], Path.GetFullPath(args[1]), args.Length > 2 ? Path.GetFullPath(args[2]) : null);
         if (args.Length >= 2 && args[0] == "approvals")

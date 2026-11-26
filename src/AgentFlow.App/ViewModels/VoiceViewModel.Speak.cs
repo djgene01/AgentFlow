@@ -44,7 +44,7 @@ public sealed partial class VoiceViewModel
     private SpeechPlayer? _player;
     private Task<SpeechPlayer?>? _ttsLoad;
     private DispatcherTimer _speakingPoll = null!;
-    private readonly Dictionary<Guid, int> _spokenUpTo = [];          // reply entry -> characters of its spoken text already queued
+    private readonly ReplyReader _replies = new();                     // how much of each reply has been read aloud
     private readonly HashSet<string> _voiceTurn = new(StringComparer.Ordinal); // projects whose current turn came from push-to-talk
     private readonly Dictionary<string, string> _lastDictated = new(StringComparer.Ordinal);
 
@@ -237,6 +237,7 @@ public sealed partial class VoiceViewModel
     public void StopSpeaking()
     {
         _player?.Stop();
+        _replies.FinishAll(); // the rest of a reply still streaming in stays quiet too
         IsSpeaking = false;
     }
 
@@ -259,8 +260,10 @@ public sealed partial class VoiceViewModel
     /// <summary>Follows a chat and reads its replies aloud as the settings say.</summary>
     public void Watch(ProjectChat chat)
     {
-        chat.EntryAdded += e => _ui.BeginInvoke(() => OnEntry(chat, e));
-        chat.EntryUpdated += e => _ui.BeginInvoke(() => OnEntry(chat, e));
+        // The entry object is updated in place as text streams in, so take its data now: a queued call that
+        // read it later would see newer text (and, after the reply ended, speak it again).
+        chat.EntryAdded += e => { var data = e.Data; _ui.BeginInvoke(() => OnEntry(chat, e.Id, data)); };
+        chat.EntryUpdated += e => { var data = e.Data; _ui.BeginInvoke(() => OnEntry(chat, e.Id, data)); };
     }
 
     /// <summary>Push-to-talk put text into a chat's message box; its reply counts as a reply to a spoken message.</summary>
@@ -269,10 +272,10 @@ public sealed partial class VoiceViewModel
         if (projectId is not null && text.Length > 0) _lastDictated[projectId] = text;
     }
 
-    private void OnEntry(ProjectChat chat, ChatEntry e)
+    private void OnEntry(ProjectChat chat, Guid entryId, ChatEntryData data)
     {
         var project = chat.Project.Id;
-        switch (e.Data)
+        switch (data)
         {
             case UserMessageData u:
                 // A message counts as spoken when what push-to-talk wrote is in it (it may have been edited a little).
@@ -287,12 +290,7 @@ public sealed partial class VoiceViewModel
                 break;
 
             case AssistantTextData a when a.ParentToolUseId is null && ShouldRead(chat):
-                var spoken = SpokenText.FromMarkdown(a.Text, final: !a.IsStreaming);
-                var from = _spokenUpTo.GetValueOrDefault(e.Id);
-                var (pieces, next) = SpokenText.TakeSentences(spoken, from, final: !a.IsStreaming);
-                _spokenUpTo[e.Id] = next;
-                foreach (var piece in pieces) Speak(piece);
-                if (!a.IsStreaming) _spokenUpTo.Remove(e.Id);
+                foreach (var piece in _replies.Next(entryId, a.Text, a.IsStreaming)) Speak(piece);
                 break;
         }
     }
